@@ -1,1 +1,1 @@
-# life-history_trade-off
+# Life-history trade-offs with a welfare biology focus.
