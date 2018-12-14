@@ -8,7 +8,7 @@ import numpy as np
 
 Nx = 10  # total number of patches in x
 Nx_init = 10  # number of intially habitable patches in x
-Nt = 100  # number of generational iterations
+Nt = 10  # number of generational iterations
 
 x_vals = np.arange(Nx)
 
@@ -74,10 +74,13 @@ for i in range(init_number):
     habitat["pDisp"][r].append(pDisp_norm)
 
 for t in t_vals:  # iterate through time
-    for x in habitat["x_vals"]:  # iterate through patches
+    for x in habitat["x"]:  # iterate through patches
         sComp = sum(habitat["pComp"][x])  # Sum of competitiveness of all individuals of given patch
+        indices_to_die = []
         for i in range(habitat["num of animals"][x]):  # iterate through individuals in a patch
-            lamb = habitat["pRep"][x][i] * R  # lambda value for Poisson distribution
+            print(i)
+            print(habitat["pRep"][x])
+            lam = habitat["pRep"][x][i] * R  # lambda value for Poisson distribution
             
             pComp = habitat["pComp"][x][i]
             surv_prob = min(K * pComp / sComp, 1)  # probability of survival to next generation
@@ -85,14 +88,93 @@ for t in t_vals:  # iterate through time
             surv_ran = np.random.random()
             if surv_ran < surv_prob:
                 # animal dies
-                habitat["num of animals"][x] -= 1
-                del habitat["pRep"][x][i]
-                del habitat["pComp"][x][i]
-                del habitat["pDisp"][x][i]
+                indices_to_die.append(i)
+#                habitat["num of animals"][x] -= 1
+#                del habitat["pRep"][x][i]
+#                del habitat["pComp"][x][i]
+#                del habitat["pDisp"][x][i]
             else:
                 # animal reproduces 
-            # FINISH THIS BIT and start a github repo
-            
-            
-            
-            
+                # Parental traits
+                pRep = habitat["pRep"][x][i]
+                pComp = habitat["pComp"][x][i]
+                pDisp = habitat["pDisp"][x][i]
+                num_offspring = np.random.poisson(lam=lam)
+                habitat["num of animals"][x] += num_offspring
+                for offspring in range(num_offspring):
+                    mut_ran = np.random.random()
+                    if mut_ran < m:
+                        # mutate one of the traits
+                        trait_ran = np.random.randint(0, 3)
+                        mut_mag_ran = np.random.uniform(-m_m, m_m)
+                        if trait_ran == 0:
+                            # mutate pRep
+                            pRep_new = min(max(pRep + mut_mag_ran, 0), 1)
+                            trait_change = pRep_new - pRep
+                            pComp_new = pComp - (trait_change * pComp) / (pComp + pDisp)
+                            pDisp_new = pDisp - (trait_change * pDisp) / (pComp + pDisp)
+                        elif trait_ran == 1:
+                            # mutate pComp
+                            pComp_new = min(max(pComp + mut_mag_ran, 0), 1)
+                            trait_change = pComp_new - pComp
+                            pRep_new = pRep - (trait_change * pRep) / (pRep + pDisp)
+                            pDisp_new = pDisp - (trait_change * pDisp) / (pRep + pDisp)
+                        else:
+                            pDisp_new = min(max(pDisp + mut_mag_ran, 0), 1)
+                            trait_change = pDisp_new - pDisp
+                            pComp_new = pComp - (trait_change * pComp) / (pRep + pComp)
+                            pRep_new = pRep - (trait_change * pRep) / (pRep + pComp)                        
+                    else:
+                        # Offspring directly inherit parental traits
+                        pRep_new = pRep
+                        pComp_new = pComp
+                        pDisp_new = pDisp
+                    habitat["pRep"][x].append(pRep_new)
+                    habitat["pComp"][x].append(pComp_new)
+                    habitat["pDisp"][x].append(pDisp_new)
+        for i in sorted(indices_to_die, reverse=True):
+            habitat["num of animals"][x] -= 1
+            del habitat["pRep"][x][i]
+            del habitat["pComp"][x][i]
+            del habitat["pDisp"][x][i]
+                
+    # disperse with probability pDisp into one of 2 surrounding patches.
+    for x in habitat["x"]:  # iterate through patches
+        indices_to_die = []
+        for i in range(habitat["num of animals"][x]):  # iterate through individuals in a patch
+            disp_ran = np.random.random()
+            pDisp = habitat["pRep"][x][i]
+            print("pDisp = ", pDisp)
+            print("pDisp_ran = ", disp_ran)
+            if disp_ran < pDisp:
+                # disperse
+                if np.random.random() < 0.5:
+                    # disperse left
+                    print("disperse left")
+                    habitat["num of animals"][x - 1] += 1
+                    habitat["pRep"][x - 1].append(habitat["pRep"][x][i])
+                    habitat["pComp"][x - 1].append(habitat["pComp"][x][i])
+                    habitat["pDisp"][x - 1].append(habitat["pDisp"][x][i])
+                else:
+                    # disperse right
+                    print("disperse left")
+                    habitat["num of animals"][(x + 1) % Nx] += 1
+                    habitat["pRep"][(x + 1) % Nx].append(habitat["pRep"][x][i])
+                    habitat["pComp"][(x + 1) % Nx].append(habitat["pComp"][x][i])
+                    habitat["pDisp"][(x + 1) % Nx].append(habitat["pDisp"][x][i])
+                indices_to_die.append(i)
+        print("itd = ", indices_to_die)
+        for i in sorted(indices_to_die, reverse=True):
+            # remove from previous patch
+            habitat["num of animals"][x] -= 1
+            del habitat["pRep"][x][i]
+            del habitat["pComp"][x][i]
+            del habitat["pDisp"][x][i]
+                
+# Looks like class for each animal would be better.
+
+pRep_array = np.empty(0)
+for x in habitat["x"]:
+    for i in range(habitat["num of animals"][x]):
+        print("this is " + str(habitat["pRep"][x][i]))
+        pRep_array = np.append(pRep_array, habitat["pRep"][x][i])
